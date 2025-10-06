@@ -5,6 +5,7 @@ from lekiwi_lerobot.utils import record_loop
 from lekiwi_teleoperate.teleoperate.arm import ArmTeleop
 from lerobot.datasets.lerobot_dataset import LeRobotDataset
 from lerobot.datasets.utils import hw_to_dataset_features
+from lerobot.policies.act.modeling_act import ACTPolicy
 from lerobot.robots.lekiwi.config_lekiwi import LeKiwiClientConfig
 from lerobot.robots.lekiwi.lekiwi_client import LeKiwiClient
 from lerobot.teleoperators.keyboard import (
@@ -17,13 +18,13 @@ from lerobot.utils.control_utils import (
 from lerobot.utils.visualization_utils import _init_rerun
 
 FPS = 30
-EPISODE_TIME_SEC = 120
+EPISODE_TIME_SEC = 180
 RESET_TIME_SEC = 10
 
 
 def main() -> None:
     """Main function to run the LeKiwi recording client."""
-    parser = argparse.ArgumentParser(description="Run the LeKiwi recording client.")
+    parser = argparse.ArgumentParser(description="Run the LeKiwi evaluation client.")
     parser.add_argument(
         "-l",
         "--level",
@@ -52,18 +53,22 @@ def main() -> None:
         default="Unnamed task",
         help="Task description to associate with each episode (default: 'Unnamed task').",
     )
+    parser.add_argument(
+        "-p",
+        "--policy",
+        type=str,
+        default="francocipollone/act_lekiwi_sim_cubes",
+        help="Hugging Face repo ID or local path of the policy to evaluate. "
+        "(default: francocipollone/act_lekiwi_sim_cubes)",
+    )
 
     args = parser.parse_args()
-    if args.repo_id is None:
-        raise ValueError(
-            "A repo ID must be provided to store the dataset. This typically looks like 'hf_username/dataset_name'."
-            "Remember to log in using Hugging Face CLI first."
-        )
 
     log_level = args.level.upper()
     logging.basicConfig(
         level=log_level, format="%(asctime)s | %(levelname)-8s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
     )
+    policy = ACTPolicy.from_pretrained(args.policy)
 
     # Create the robot and teleoperator configurations
     robot_config = LeKiwiClientConfig(remote_ip="127.0.0.1", id="lekiwi")
@@ -73,21 +78,28 @@ def main() -> None:
     keyboard = KeyboardTeleop(keyboard_config)
     arm_keyboard_handler = ArmTeleop()
     # Configure the dataset features
-    action_features = hw_to_dataset_features(robot.action_features, "action")
-    obs_features = hw_to_dataset_features(robot.observation_features, "observation")
+
+    action_features = robot.action_features
+    obs_features = robot.observation_features
+
+    action_features = hw_to_dataset_features(action_features, "action")
+    obs_features = hw_to_dataset_features(obs_features, "observation")
     logging.info(f"Recording the following observation features: {list(obs_features.keys())}")
     logging.info(f"Recording the following action features: {list(action_features.keys())}")
+
     dataset_features = {**action_features, **obs_features}
 
-    # Create the dataset
-    dataset = LeRobotDataset.create(
-        repo_id=args.repo_id,
-        fps=FPS,
-        features=dataset_features,
-        robot_type=robot.name,
-        use_videos=True,
-        image_writer_threads=0,
-    )
+    dataset = None
+    if args.repo_id is not None:
+        # Create the dataset
+        dataset = LeRobotDataset.create(
+            repo_id=args.repo_id,
+            fps=FPS,
+            features=dataset_features,
+            robot_type=robot.name,
+            use_videos=True,
+            image_writer_threads=0,
+        )
 
     # To connect you already should have:
     #  - Real robot: this script running on LeKiwi:
@@ -96,7 +108,7 @@ def main() -> None:
     robot.connect()
     keyboard.connect()
 
-    _init_rerun(session_name="lekiwi_record")
+    _init_rerun(session_name="lekiwi_evaluate")
 
     listener, events = init_keyboard_listener()
 
@@ -105,7 +117,6 @@ def main() -> None:
     logging.info("Robot and keyboard are connected.")
     recorded_episodes = 0
     while recorded_episodes < args.episodes and not events["stop_recording"]:
-        arm_keyboard_handler = ArmTeleop()
         logging.info(f"Recording episode {recorded_episodes}")
         # Run the record loop
         record_loop(
@@ -118,6 +129,7 @@ def main() -> None:
             control_time_s=EPISODE_TIME_SEC,
             single_task=args.task,
             display_data=True,
+            policy=policy,
         )
 
         # Logic for reset env
@@ -132,20 +144,23 @@ def main() -> None:
                 control_time_s=RESET_TIME_SEC,
                 single_task=args.task,
                 display_data=True,
+                policy=policy,
             )
 
         if events["rerecord_episode"]:
             logging.info("Re-record episode")
             events["rerecord_episode"] = False
             events["exit_early"] = False
-            dataset.clear_episode_buffer()
+            if dataset is not None:
+                dataset.clear_episode_buffer()
             continue
-
-        dataset.save_episode()
+        if dataset is not None:
+            dataset.save_episode()
         recorded_episodes += 1
 
     # Upload to hub and clean up
-    dataset.push_to_hub()
+    if dataset is not None:
+        dataset.push_to_hub()
 
     robot.disconnect()
     keyboard.disconnect()
