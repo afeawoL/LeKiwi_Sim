@@ -4,12 +4,14 @@ import time
 
 from lerobot.datasets.utils import build_dataset_frame, hw_to_dataset_features
 from lerobot.policies.act.modeling_act import ACTPolicy
+from lerobot.policies.factory import make_pre_post_processors
 from lerobot.robots.lekiwi.config_lekiwi import LeKiwiClientConfig
 from lerobot.robots.lekiwi.lekiwi_client import LeKiwiClient
+from lerobot.utils.constants import ACTION, OBS_STR
 from lerobot.utils.control_utils import init_keyboard_listener, predict_action
 from lerobot.utils.robot_utils import busy_wait
 from lerobot.utils.utils import get_safe_torch_device
-from lerobot.utils.visualization_utils import _init_rerun, log_rerun_data
+from lerobot.utils.visualization_utils import init_rerun, log_rerun_data
 
 FPS = 30
 
@@ -82,12 +84,16 @@ def main() -> None:
     logging.info("Robot is connected.")
 
     # Prepare for policy inference
-    action_features = hw_to_dataset_features(robot.action_features, "action")
-    obs_features = hw_to_dataset_features(robot.observation_features, "observation")
+    action_features = hw_to_dataset_features(robot.action_features, ACTION)
+    obs_features = hw_to_dataset_features(robot.observation_features, OBS_STR)
     dataset_features = {**action_features, **obs_features}
     device = get_safe_torch_device(policy.config.device)
-
-    _init_rerun(session_name="lekiwi_run_policy")
+    # Build Policy Processors
+    preprocessor, postprocessor = make_pre_post_processors(
+        policy_cfg=policy.config,
+        pretrained_path=args.policy,
+    )
+    init_rerun(session_name="lekiwi_run_policy")
 
     listener, events = init_keyboard_listener()
 
@@ -97,16 +103,23 @@ def main() -> None:
 
         observation = robot.get_observation()
 
-        observation_frame = build_dataset_frame(dataset_features, observation, prefix="observation")
+        observation_frame = build_dataset_frame(dataset_features, observation, prefix=OBS_STR)
 
         action_values = predict_action(
             observation_frame,
             policy,
             device,
+            preprocessor,
+            postprocessor,
             policy.config.use_amp,
             task=args.task,
             robot_type=robot.robot_type,
         )
+        # As of LeRobot 0.4.0, the postprocessor returns a tensor that might have batch dimension
+        # Remove batch dimension if present
+        if action_values.dim() > 1:
+            action_values = action_values.squeeze(0)
+
         action = {key: action_values[i].item() for i, key in enumerate(robot.action_features)}
 
         logging.debug(f"Predicted action: {action}")
