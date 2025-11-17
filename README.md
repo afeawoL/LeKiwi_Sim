@@ -116,7 +116,7 @@ cargo test
 
 The `lekiwi_sim` package provides a high-fidelity MuJoCo simulation environment that serves as a drop-in replacement for the real robot's host server. The implementation replicates LeRobot's `lekiwi_host` server interface, allowing seamless switching between simulation and real hardware without code changes. This means all LeRobot tools and scripts (teleoperation, recording, policy execution) work identically with both the simulated and physical robot.
 
-<img src="docs/media/lekiwi_sim.png" alt="LeKiwi Simulation" width="600">
+[lekiwi_sim_example.webm](https://github.com/user-attachments/assets/9d20a184-202c-473b-9dda-f2b11dd24c59)
 
 **Key Features:**
 - Physics-accurate omniwheel modeling
@@ -169,6 +169,8 @@ uv run lekiwi_host_sim  # For simulation
 # Then teleoperate
 uv run lekiwi_teleoperate
 ```
+
+[lekiwi_sim_pick_cube.webm](https://github.com/user-attachments/assets/32af6eca-834b-4ba4-8609-33bc428cb75f)
 
 ### Data Collection & Training
 
