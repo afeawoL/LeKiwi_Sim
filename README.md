@@ -169,6 +169,9 @@ uv run lekiwi_host_sim  # For simulation
 # Then teleoperate the simulated or real robot.
 uv run lekiwi_teleoperate
 ```
+
+[lekiwi_sim_pick_cube.webm](https://github.com/user-attachments/assets/32af6eca-834b-4ba4-8609-33bc428cb75f)
+
 By default it will allow you to teleoperate the Lekiwi completely using the keyboard.
 If you have a leader arm you can use it to teleoperate the arm part in the simulation as well:
 
@@ -178,8 +181,6 @@ uv run lekiwi_teleoperate --leader-arm
 
 [lekiwi_sim_leader_LOW.webm](https://github.com/user-attachments/assets/76e565cd-93d2-42ae-976d-3d25091039a4)
 
-
-[lekiwi_sim_pick_cube.webm](https://github.com/user-attachments/assets/32af6eca-834b-4ba4-8609-33bc428cb75f)
 
 ### Data Collection & Training
 
