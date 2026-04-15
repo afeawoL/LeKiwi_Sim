@@ -79,7 +79,7 @@ lekiwi/
 
 **Terminal 1 - Start simulation:**
 ```bash
-uv run lekiwi_host_sim
+uv run lekiwi_sim_host
 ```
 
 **Terminal 2 - Teleoperate:**
@@ -143,7 +143,7 @@ The `lekiwi_sim` package provides a high-fidelity MuJoCo simulation environment 
    - Works exactly like the real robot from the client perspective
 
    ```bash
-   uv run lekiwi_host_sim
+   uv run lekiwi_sim_host
    ```
 
 See [packages/lekiwi_sim/README.md](packages/lekiwi_sim/README.md) for detailed documentation.
@@ -164,7 +164,7 @@ Manual control interface using the LeRobot API:
 
 ```bash
 # Start simulation or real robot first
-uv run lekiwi_host_sim  # For simulation
+uv run lekiwi_sim_host  # For simulation
 
 # Then teleoperate the simulated or real robot.
 uv run lekiwi_teleoperate
@@ -226,7 +226,7 @@ The repository includes pre-configured dataflow graphs in `dora/lekiwi/graphs/`:
 ```bash
 
 # Start simulation (or alternatively the real robot).
-uv run lekiwi_host_sim
+uv run lekiwi_sim_host
 ```
 
 **Run the policy execution dataflow:**
