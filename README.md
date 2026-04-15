@@ -95,6 +95,7 @@ This monorepo uses multiple build systems:
 ```bash
 # Install all packages in development mode
 uv pip install -e .
+uv pip install -e packages/*
 
 # Build distribution packages
 uv build --all-packages
